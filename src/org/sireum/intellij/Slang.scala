@@ -27,7 +27,7 @@ package org.sireum.intellij
 
 import java.awt.Font
 import java.io.File
-import java.util.concurrent.{Executors, ScheduledExecutorService, TimeUnit}
+import java.util.concurrent.{Executors, ScheduledExecutorService, ScheduledFuture, TimeUnit}
 
 import com.intellij.notification.{Notification, NotificationType}
 import com.intellij.openapi.actionSystem.AnAction
@@ -48,17 +48,15 @@ import org.sireum.message._
 import org.sireum.{None => SNone, Some => SSome}
 import org.sireum.lang.FrontEnd
 import SireumApplicationComponent._
+import javax.swing.Icon
+import org.sireum.lang.logika.TruthTableVerifier
 
-import scala.{None, Option}
+object Slang {
 
-object SlangScript {
-
-  object EditorEnabled
-
-  val changedKey = new Key[Option[Long]]("Slang Last Changed")
-  val statusKey = new Key[Boolean]("Logika Last Status")
+  val changedKey = new Key[Long]("Slang Last Changed")
+  val futureKey = new Key[ScheduledFuture[_]]("Slang Editor Future")
+  val statusKey = new Key[Boolean]("Last Status")
   val analysisDataKey = new Key[Vector[RangeHighlighter]]("Slang Analysis Data")
-
   val scheduler: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
   val changeThreshold = 1500
 
@@ -67,14 +65,15 @@ object SlangScript {
   val emptyAction: AnAction = _ => {}
 
   def editorOpened(project: Project, file: VirtualFile, editor: Editor): Unit = {
+    editor.putUserData(statusKey, false)
     val ext = Util.getFileExt(project)
     ext match {
-      case "sc" =>
+      case "sc" | "slang" | "scala" =>
         ApplicationManager.getApplication.invokeLater(() => {
           val fileUri = new File(file.getCanonicalPath).toURI.toString
           processResult(editor, check(editor, fileUri))
-          editor.putUserData(changedKey, Some(System.currentTimeMillis()))
-          scheduler.scheduleAtFixedRate((() => {
+          editor.putUserData(changedKey, System.currentTimeMillis())
+          val future = scheduler.scheduleAtFixedRate((() => {
             try analyze(editor, fileUri) catch {
               case t: Throwable =>
                 val sw = new java.io.StringWriter()
@@ -83,11 +82,12 @@ object SlangScript {
                   NotificationType.ERROR), editor.getProject, shouldExpire = true)
             }
           }): Runnable, 0, changeThreshold, TimeUnit.MILLISECONDS)
+          editor.synchronized(editor.putUserData(futureKey, future))
           editor.getDocument.addDocumentListener(new DocumentListener {
             override def documentChanged(event: DocumentEvent): Unit = {
               if (editor.isDisposed) return
               editor.synchronized {
-                editor.putUserData(changedKey, Some(System.currentTimeMillis()))
+                editor.putUserData(changedKey, System.currentTimeMillis())
               }
             }
 
@@ -158,11 +158,28 @@ object SlangScript {
   def check(editor: Editor, fileUri: FileResourceUri): Seq[Message] = {
     val text = editor.getDocument.getText
     val reporter = Reporter.create
+    val (noPrev, prevStatus) = Option(editor.getUserData(statusKey)) match {
+      case Some(b) => (false, b)
+      case _ => (true, false)
+    }
     val unitOpt = Parser(text).parseTopUnit[TopUnit](allowSireum = false, isWorksheet = true, isDiet = false,
       fileUriOpt = SSome(fileUri), reporter = reporter)
-    val status = !reporter.hasIssue.value
+    var status = !reporter.hasIssue.value
     unitOpt match {
-      case SSome(p: TopUnit.Program) => FrontEnd.checkWorksheet(SNone(), p, reporter)
+      case SSome(p: TopUnit.Program) if fileUri.endsWith(".sc") => FrontEnd.checkWorksheet(SNone(), p, reporter)
+      case SSome(ttu: TopUnit.TruthTableUnit) => TruthTableVerifier.verify(ttu, reporter)
+        status = !reporter.hasIssue.value
+        if (noPrev || (status != prevStatus)) {
+          if (status) {
+            Util.notify(new Notification("Sireum Logika", "Logika Verified", "Truth Table is accepted",
+              NotificationType.INFORMATION) {
+              override def getIcon: Icon = verifiedInfoIcon
+            }, editor.getProject, shouldExpire = true)
+          } else {
+            Util.notify(new Notification("Sireum Logika", "Logika Error", "Truth Table is rejected",
+              NotificationType.ERROR), editor.getProject, shouldExpire = true)
+          }
+        }
       case _ =>
     }
     for (m <- reporter.internalErrors) {
@@ -176,12 +193,12 @@ object SlangScript {
 
   def analyze(editor: Editor, fileUri: FileResourceUri): Unit = {
     editor.synchronized {
-      editor.getUserData(changedKey) match {
-        case Some(lastChanged) =>
+      Option(editor.getUserData(changedKey)) match {
+        case Some(lastChanged) if lastChanged != 0 =>
           val d = System.currentTimeMillis() - lastChanged
           if (d > changeThreshold) {
             processResult(editor, check(editor, fileUri))
-            editor.putUserData(changedKey, null)
+            editor.putUserData(changedKey, 0l)
           }
         case _ =>
       }
@@ -296,5 +313,9 @@ object SlangScript {
     })
 
 
-  def editorClosed(project: Project, file: VirtualFile): Unit = {}
+  def editorClosed(project: Project, file: VirtualFile, editor: Editor): Unit = {
+    editor.synchronized{
+      Option(editor.getUserData(futureKey)).foreach(_.cancel(false))
+    }
+  }
 }

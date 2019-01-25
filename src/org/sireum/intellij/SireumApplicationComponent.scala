@@ -30,22 +30,27 @@ import java.awt.Color
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.markup.GutterIconRenderer
-import com.intellij.openapi.fileEditor.{FileEditorManager, FileEditorManagerListener}
+import com.intellij.openapi.fileEditor.{FileEditorManager, FileEditorManagerListener, TextEditor}
 import com.intellij.openapi.ui.popup.Balloon
-import com.intellij.openapi.util.IconLoader
+import com.intellij.openapi.util.{IconLoader, Key}
 import com.intellij.openapi.vfs.VirtualFile
 import javax.swing.Icon
+
+object EditorOpened
 
 object SireumApplicationComponent {
   type FileResourceUri = String
   val gutterErrorIcon: Icon = IconLoader.getIcon("/gutter-error.png")
   val gutterWarningIcon: Icon = IconLoader.getIcon("/gutter-warning.png")
   val gutterInfoIcon: Icon = IconLoader.getIcon("/gutter-info.png")
+  val verifiedInfoIcon: Icon = IconLoader.getIcon("/logika-verified-info.png")
   var tooltipMessageOpt: scala.Option[String] = scala.None
   var tooltipBalloonOpt: scala.Option[Balloon] = scala.None
   val tooltipDefaultBgColor: Color = new Color(0xFF, 0xFF, 0xCC)
   val tooltipDarculaBgColor: Color = new Color(0x5C, 0x5C, 0x42)
+  val editorOpenedKey: Key[EditorOpened.type] = new Key[EditorOpened.type]("Editor Opened")
 
   def gutterIconRenderer(tooltipText: String, icon: Icon, action: AnAction): GutterIconRenderer =
     new GutterIconRenderer {
@@ -59,21 +64,34 @@ object SireumApplicationComponent {
 
       override def getClickAction: AnAction = action
     }
+
+  def getEditorOpt(source: FileEditorManager, file: VirtualFile): Option[Editor] = {
+    source.getSelectedEditor(file) match {
+      case te: TextEditor => Some(te.getEditor)
+      case _ => None
+    }
+  }
 }
+
+import SireumApplicationComponent._
 
 final class SireumApplicationComponent extends Disposable {
 
   {
     ApplicationManager.getApplication.invokeLater(() => org.sireum.lang.FrontEnd.libraryReporter)
-    ApplicationManager.getApplication.getMessageBus.
-      connect(this).subscribe(FileEditorManagerListener.FILE_EDITOR_MANAGER,
+    val mb = ApplicationManager.getApplication.getMessageBus.connect(this)
+    mb.subscribe(FileEditorManagerListener.FILE_EDITOR_MANAGER,
       new FileEditorManagerListener {
-
         override def fileOpened(source: FileEditorManager,
                                 file: VirtualFile): Unit = {
-          SlangScript.editorOpened(source.getProject, file, source.getSelectedTextEditor)
+          getEditorOpt(source, file).foreach(Slang.editorOpened(source.getProject, file, _))
         }
-
+      })
+    mb.subscribe(FileEditorManagerListener.Before.FILE_EDITOR_MANAGER,
+      new FileEditorManagerListener.Before {
+        override def beforeFileClosed(source: FileEditorManager, file: VirtualFile): Unit = {
+          getEditorOpt(source, file).foreach(Slang.editorClosed(source.getProject, file, _))
+        }
       })
   }
 

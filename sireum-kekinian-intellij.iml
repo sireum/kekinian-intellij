@@ -9,7 +9,7 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" scope="PROVIDED" name="scala-sdk-2.12.8" level="project" />
-    <orderEntry type="library" name="sireum" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Scala" level="application" />
+    <orderEntry type="library" name="Sireum" level="application" />
   </component>
 </module>

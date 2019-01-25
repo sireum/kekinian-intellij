@@ -1,4 +1,7 @@
-/.idea
+/.idea/encodings.xml
+/.idea/sbt.xml
+/.idea/uiDesigner.xml
+/.idea/workspace.xml
 out
 /lib/sireum.jar
-/kekinian-intellij.zip
+/sireum-kekinian-intellij.zip
