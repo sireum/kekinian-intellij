@@ -162,8 +162,8 @@ object Slang {
       case Some(b) => (false, b)
       case _ => (true, false)
     }
-    val unitOpt = Parser(text).parseTopUnit[TopUnit](allowSireum = false, isWorksheet = true, isDiet = false,
-      fileUriOpt = SSome(fileUri), reporter = reporter)
+    val unitOpt = Parser(text).parseTopUnit[TopUnit](allowSireum = true, isWorksheet = fileUri.endsWith(".sc"),
+      isDiet = false, fileUriOpt = SSome(fileUri), reporter = reporter)
     var status = !reporter.hasIssue.value
     unitOpt match {
       case SSome(p: TopUnit.Program) if fileUri.endsWith(".sc") => FrontEnd.checkWorksheet(SNone(), p, reporter)
