@@ -68,7 +68,7 @@ object Slang {
     editor.putUserData(statusKey, false)
     val ext = Util.getFileExt(project)
     ext match {
-      case "sc" | "slang" | "scala" =>
+      case "sc" | "scala" | "slang" | "logika" =>
         ApplicationManager.getApplication.invokeLater(() => {
           val fileUri = new File(file.getCanonicalPath).toURI.toString
           processResult(editor, check(editor, fileUri))
