@@ -274,22 +274,7 @@ object Slang {
         }
       }
       for ((line, messages) <- lineMap) scala.util.Try {
-        val attr = {
-          var p = 0
-          for (m <- messages) m.level match {
-            case Level.Error if p <= 2 => p = 3
-            case Level.Warning if p <= 1 => p = 2
-            case Level.Info if p <= 0 => p = 1
-            case _ =>
-          }
-          p match {
-            case 0 => null
-            case 1 => infoAttr
-            case 2 => warningAttr
-            case 3 => errorAttr
-          }
-        }
-        val rhLine = mm.addLineHighlighter(line - 1, layer, attr)
+        val rhLine = mm.addLineHighlighter(line - 1, layer, null)
         val (color, icon) = {
           var p = 0
           for (m <- messages) {
