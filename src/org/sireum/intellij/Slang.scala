@@ -265,12 +265,15 @@ object Slang {
               rh.setErrorStripeMarkColor(infoColor)
               rhs :+= rh
             case _ =>
-          })
+          }) match {
+            case scala.util.Failure(ex) => ex.printStackTrace()
+            case _ =>
+          }
         } else {
           lineMap += 1 -> (lineMap.getOrElse(1, Vector()) :+ m)
         }
       }
-      for ((line, messages) <- lineMap) {
+      for ((line, messages) <- lineMap) scala.util.Try {
         val attr = {
           var p = 0
           for (m <- messages) m.level match {
@@ -308,6 +311,9 @@ object Slang {
           gutterIconRenderer(messages.map(_.text).mkString(tooltipSep),
             icon, emptyAction))
         rhs :+= rhLine
+      } match {
+        case scala.util.Failure(ex) => ex.printStackTrace()
+        case _ =>
       }
       editor.putUserData(analysisDataKey, rhs)
     })
