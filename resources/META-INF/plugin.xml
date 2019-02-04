@@ -2,7 +2,7 @@
     <id>org.sireum.intellij.kekinian</id>
     <name>Sireum Kekinian</name>
     <version>4.0.0-SNAPSHOT</version>
-    <vendor email="robby@k-state.edu" url="http://sireum.org">SAnToS Laboratory, Kansas State University</vendor>
+    <vendor>SAnToS Lab, Kansas State University</vendor>
 
     <description><![CDATA[
       This plugin provides integration with Sireum Kekinian tools.
