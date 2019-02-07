@@ -197,8 +197,8 @@ object Slang {
         case Some(lastChanged) if lastChanged != 0 =>
           val d = System.currentTimeMillis() - lastChanged
           if (d > changeThreshold) {
-            processResult(editor, check(editor, fileUri))
-            editor.putUserData(changedKey, 0l)
+            try processResult(editor, check(editor, fileUri))
+            finally editor.putUserData(changedKey, 0l)
           }
         case _ =>
       }
