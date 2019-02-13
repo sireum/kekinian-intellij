@@ -68,7 +68,7 @@ object Slang {
     editor.putUserData(statusKey, false)
     val ext = Util.getFileExt(project)
     ext match {
-      case "sc" | "scala" | "slang" | "logika" =>
+      case "sc" | "scala" | "cmd" | "slang" | "logika" =>
         ApplicationManager.getApplication.invokeLater(() => {
           val fileUri = new File(file.getCanonicalPath).toURI.toString
           processResult(editor, check(editor, fileUri))
@@ -162,11 +162,11 @@ object Slang {
       case Some(b) => (false, b)
       case _ => (true, false)
     }
-    val unitOpt = Parser(text).parseTopUnit[TopUnit](allowSireum = true, isWorksheet = fileUri.endsWith(".sc"),
+    val unitOpt = Parser(text).parseTopUnit[TopUnit](allowSireum = true, isWorksheet = !fileUri.endsWith(".scala"),
       isDiet = false, fileUriOpt = SSome(fileUri), reporter = reporter)
     var status = !reporter.hasIssue.value
     unitOpt match {
-      case SSome(p: TopUnit.Program) if fileUri.endsWith(".sc") => FrontEnd.checkWorksheet(SNone(), p, reporter)
+      case SSome(p: TopUnit.Program) if !fileUri.endsWith(".scala") => FrontEnd.checkWorksheet(SNone(), p, reporter)
       case SSome(ttu: TopUnit.TruthTableUnit) => TruthTableVerifier.verify(ttu, reporter)
         status = !reporter.hasIssue.value
         if (noPrev || (status != prevStatus)) {
