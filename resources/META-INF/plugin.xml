@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>org.sireum.intellij.kekinian</id>
     <name>Sireum Kekinian</name>
-    <version>4.0.0-SNAPSHOT</version>
+    <version>5.0.0-SNAPSHOT</version>
     <vendor>SAnToS Lab, Kansas State University</vendor>
 
     <description><![CDATA[
